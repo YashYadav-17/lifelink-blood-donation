@@ -1,2 +1,157 @@
-import{useEffect,useMemo,useState}from'react';import{MapPin}from'lucide-react';import{groups}from'../data/mockData';import{getBloodRequests,updateBloodRequest}from'../utils/storage';import{BloodBadge,EmptyState,Modal,StatusBadge,useToast}from'../components/UI'
-export default function RequestsPage(){const[data,setData]=useState(()=>getBloodRequests()),[filters,setFilters]=useState({blood:'',urgency:'',status:'',city:'',sort:'new'}),[confirm,setConfirm]=useState(null),toast=useToast();useEffect(()=>{const load=()=>setData(getBloodRequests());addEventListener('lifelink-update',load);return()=>removeEventListener('lifelink-update',load)},[]);const list=useMemo(()=>data.filter(r=>(!filters.blood||r.blood===filters.blood)&&(!filters.urgency||r.urgency===filters.urgency)&&(!filters.status||r.status===filters.status)&&(!filters.city||r.city===filters.city)).sort((a,b)=>filters.sort==='old'?String(a.createdAt).localeCompare(String(b.createdAt)):String(b.createdAt).localeCompare(String(a.createdAt))),[data,filters]);function changeStatus(request,status){if(['Fulfilled','Cancelled'].includes(status)){setConfirm({request,status});return}updateBloodRequest(request.id,{status});toast({text:`Request marked as ${status.toLowerCase()}.`})}function approve(){updateBloodRequest(confirm.request.id,{status:confirm.status});toast({text:`Request marked as ${confirm.status.toLowerCase()}.`});setConfirm(null)}const set=(key,value)=>setFilters({...filters,[key]:value});return <section className="page requests-page"><header className="page-heading"><span className="eyebrow">Request management</span><h1>Blood requests</h1><p>Review incoming requests, coordinate matches, and update demonstration statuses.</p></header><div className="filter request-filters"><select value={filters.blood} onChange={e=>set('blood',e.target.value)}><option value="">All blood groups</option>{groups.map(g=><option key={g}>{g}</option>)}</select><select value={filters.urgency} onChange={e=>set('urgency',e.target.value)}><option value="">All urgency levels</option>{['Normal','Urgent','Emergency'].map(x=><option key={x}>{x}</option>)}</select><select value={filters.status} onChange={e=>set('status',e.target.value)}><option value="">All statuses</option>{['Pending','Matching','Fulfilled','Cancelled'].map(x=><option key={x}>{x}</option>)}</select><input placeholder="Filter by location" value={filters.city} onChange={e=>set('city',e.target.value)}/><select value={filters.sort} onChange={e=>set('sort',e.target.value)}><option value="new">Newest first</option><option value="old">Oldest first</option></select></div><div className="table-card request-table"><div className="chart-title"><div><h3>All requests</h3><p>{list.length} records in local demo storage</p></div></div><div className="table-wrap"><table><thead><tr><th>Request</th><th>Blood / units</th><th>Hospital & location</th><th>Urgency</th><th>Created</th><th>Status</th><th>Manage</th></tr></thead><tbody>{list.map(r=><tr key={r.id}><td><b>{r.patient}</b><small>{r.id}</small></td><td><BloodBadge value={r.blood}/><small>{r.units} unit(s)</small></td><td>{r.hospital}<small><MapPin size={11}/>{r.city}</small></td><td><StatusBadge value={r.urgency}/></td><td>{new Date(r.createdAt||Date.now()).toLocaleDateString()}<small>{r.posted}</small></td><td><StatusBadge value={r.status}/></td><td><select aria-label={`Status for ${r.id}`} value={r.status} onChange={e=>changeStatus(r,e.target.value)}><option>Pending</option><option>Matching</option><option>Fulfilled</option><option>Cancelled</option></select></td></tr>)}</tbody></table>{!list.length&&<EmptyState title="No matching requests"/>}</div></div>{confirm&&<Modal title="Confirm status update" onClose={()=>setConfirm(null)}><p>Mark request <b>{confirm.request.id}</b> as <b>{confirm.status}</b>? This is a demo-only status change and will update the dashboard.</p><div className="modal-actions"><button className="button outline" onClick={()=>setConfirm(null)}>Cancel</button><button className="button" onClick={approve}>Confirm</button></div></Modal>}</section>}
+import { useEffect, useMemo, useState } from 'react'
+import { MapPin } from 'lucide-react'
+import { groups } from '../data/mockData'
+import { getBloodRequests, updateBloodRequest } from '../utils/storage'
+import { BloodBadge, EmptyState, StatusBadge, useToast } from '../components/UI'
+
+export default function RequestsPage() {
+	const [data, setData] = useState(() => getBloodRequests())
+	const [filters, setFilters] = useState({ blood: '', urgency: '', status: '', city: '', sort: 'new' })
+	const [confirm, setConfirm] = useState(null)
+	const toast = useToast()
+
+	useEffect(() => {
+		const load = () => setData(getBloodRequests())
+		addEventListener('lifelink-update', load)
+		return () => removeEventListener('lifelink-update', load)
+	}, [])
+
+	const list = useMemo(
+		() => data
+			.filter(r =>
+				(!filters.blood || r.blood === filters.blood) &&
+				(!filters.urgency || r.urgency === filters.urgency) &&
+				(!filters.status || r.status === filters.status) &&
+				(!filters.city || r.city === filters.city)
+			)
+			.sort((a, b) => (
+				filters.sort === 'old'
+					? String(a.createdAt).localeCompare(String(b.createdAt))
+					: String(b.createdAt).localeCompare(String(a.createdAt))
+			)),
+		[data, filters]
+	)
+
+	function changeStatus(request, status) {
+		if (['Fulfilled', 'Cancelled'].includes(status)) {
+			setConfirm({ request, status })
+			return
+		}
+		updateBloodRequest(request.id, { status })
+		toast({ text: `Request marked as ${status.toLowerCase()}.` })
+	}
+
+	function approve() {
+		updateBloodRequest(confirm.request.id, { status: confirm.status })
+		toast({ text: `Request marked as ${confirm.status.toLowerCase()}.` })
+		setConfirm(null)
+	}
+
+	const set = (key, value) => setFilters({ ...filters, [key]: value })
+
+	return (
+		<section className="page requests-page">
+			<header className="page-heading">
+				<span className="eyebrow">Request management</span>
+				<h1>Blood requests</h1>
+				<p>Review incoming requests, coordinate matches, and update demonstration statuses.</p>
+			</header>
+
+			<div className="filter request-filters lifelink-filter card shadow-sm border-0">
+				<select className="form-select" value={filters.blood} onChange={e => set('blood', e.target.value)}>
+					<option value="">All blood groups</option>
+					{groups.map(g => <option key={g}>{g}</option>)}
+				</select>
+				<select className="form-select" value={filters.urgency} onChange={e => set('urgency', e.target.value)}>
+					<option value="">All urgency levels</option>
+					{['Normal', 'Urgent', 'Emergency'].map(x => <option key={x}>{x}</option>)}
+				</select>
+				<select className="form-select" value={filters.status} onChange={e => set('status', e.target.value)}>
+					<option value="">All statuses</option>
+					{['Pending', 'Matching', 'Fulfilled', 'Cancelled'].map(x => <option key={x}>{x}</option>)}
+				</select>
+				<input className="form-control" placeholder="Filter by location" value={filters.city} onChange={e => set('city', e.target.value)} />
+				<select className="form-select" value={filters.sort} onChange={e => set('sort', e.target.value)}>
+					<option value="new">Newest first</option>
+					<option value="old">Oldest first</option>
+				</select>
+			</div>
+
+			<div className="table-card request-table">
+				<div className="chart-title">
+					<div>
+						<h3>All requests</h3>
+						<p>{list.length} records in local demo storage</p>
+					</div>
+				</div>
+
+				<div className="table-wrap">
+					<table className="table align-middle">
+						<thead>
+							<tr>
+								<th>Request</th>
+								<th>Blood / units</th>
+								<th>Hospital and location</th>
+								<th>Urgency</th>
+								<th>Created</th>
+								<th>Status</th>
+								<th>Manage</th>
+							</tr>
+						</thead>
+						<tbody>
+							{list.map(r => (
+								<tr key={r.id}>
+									<td><b>{r.patient}</b><small>{r.id}</small></td>
+									<td><BloodBadge value={r.blood} /><small>{r.units} unit(s)</small></td>
+									<td>{r.hospital}<small><MapPin size={11} />{r.city}</small></td>
+									<td><StatusBadge value={r.urgency} /></td>
+									<td>{new Date(r.createdAt || Date.now()).toLocaleDateString()}<small>{r.posted}</small></td>
+									<td><StatusBadge value={r.status} /></td>
+									<td>
+										<select
+											className="form-select form-select-sm"
+											aria-label={`Status for ${r.id}`}
+											value={r.status}
+											onChange={e => changeStatus(r, e.target.value)}
+										>
+											<option>Pending</option>
+											<option>Matching</option>
+											<option>Fulfilled</option>
+											<option>Cancelled</option>
+										</select>
+									</td>
+								</tr>
+							))}
+						</tbody>
+					</table>
+					{!list.length && <EmptyState title="No matching requests" />}
+				</div>
+			</div>
+
+			{confirm && (
+				<>
+					<div className="modal fade show d-block" tabIndex="-1" role="dialog" aria-modal="true">
+						<div className="modal-dialog modal-dialog-centered">
+							<div className="modal-content border-0 shadow">
+								<div className="modal-header">
+									<h5 className="modal-title">Confirm status update</h5>
+									<button type="button" className="btn-close" aria-label="Close" onClick={() => setConfirm(null)} />
+								</div>
+								<div className="modal-body">
+									<p className="mb-0">
+										Mark request <b>{confirm.request.id}</b> as <b>{confirm.status}</b>? This demo-only status change updates dashboard summaries.
+									</p>
+								</div>
+								<div className="modal-footer">
+									<button type="button" className="btn btn-outline-secondary" onClick={() => setConfirm(null)}>Cancel</button>
+									<button type="button" className="btn btn-danger" onClick={approve}>Confirm</button>
+								</div>
+							</div>
+						</div>
+					</div>
+					<div className="modal-backdrop fade show" onClick={() => setConfirm(null)} />
+				</>
+			)}
+		</section>
+	)
+}
